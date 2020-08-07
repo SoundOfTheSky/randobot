@@ -155,6 +155,12 @@ client.on('message', msg => {
         .setTitle('Events')
         .addFields(...events),
     );
+  } else if (message === 'events enable') {
+    Object.keys(gSettings.events).forEach(event => (gSettings.events[event] = true));
+    sendMsg(`All events are now enabled!`);
+  } else if (message === 'events disable') {
+    Object.keys(gSettings.events).forEach(event => (gSettings.events[event] = false));
+    sendMsg(`All events are now disabled!`);
   } else if (message.startsWith('events enable ')) {
     const eventName = message.replace('events enable ', '');
     if (!Object.keys(gSettings.events).includes(eventName)) return sendMsg('There are no events with that name');
@@ -171,7 +177,7 @@ client.on('message', msg => {
       gSettings.eventsInterval = interval;
       clearInterval(guildsIntevals[msg.guild.id]);
       guildsIntevals[msg.guild.id] = setInterval(() => eventLoop(msg.guild), gSettings.eventsInterval * 60 * 1000);
-      sendMsg(`Events wiil now happen every ${interval} minutes!`);
+      sendMsg(`Events wiil now happen every ${interval} min!`);
     } else sendMsg('Interval must be a positive number');
   } else if (message.startsWith('clear chat after ')) {
     const interval = parseInt(message.replace('clear chat after ', ''));
