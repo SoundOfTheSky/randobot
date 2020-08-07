@@ -210,19 +210,20 @@ client.on('voiceStateUpdate', async (oldMember, newMember) => {
       if (gSettings.autojoin && !biggestVoiceChannel.members.array().find(el => el.user.id === client.user.id))
         await biggestVoiceChannel.join();
     } else oldMember.channel.leave();
-    if (
-      gSettings.nicknameAnnouncements &&
-      newMember.channel &&
-      newMember.guild.voice &&
-      newMember.channel.id === newMember.guild.voice.channel.id &&
-      (!oldMember.channel || oldMember.channel.id !== newMember.channel.id)
-    ) {
-      const connection = getChannelVoiceConnection(newMember.channel);
-      setTimeout(() => {
+    setTimeout(() => {
+      if (
+        gSettings.nicknameAnnouncements &&
+        newMember.channel &&
+        newMember.guild.voice &&
+        newMember.channel.id === newMember.guild.voice.channel.id &&
+        (!oldMember.channel || oldMember.channel.id !== newMember.channel.id)
+      ) {
+        const connection = getChannelVoiceConnection(newMember.channel);
+
         if (connection) connection.play(__dirname + `/audio/nicknameAnnouncements/${newMember.member.user.id}.mp3`);
         //eventLoop(newMember.guild);
-      }, 500);
-    }
+      }
+    }, 500);
   } catch (e) {
     console.error(e);
   }
