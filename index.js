@@ -175,8 +175,6 @@ client.on('message', msg => {
     const interval = parseInt(message.replace('events interval ', ''));
     if (interval > 0) {
       gSettings.eventsInterval = interval;
-      console.log(msg.guild.id);
-      console.log(guildsIntevals);
       clearInterval(guildsIntevals[msg.guild.id]);
       guildsIntevals[msg.guild.id] = setInterval(() => eventLoop(msg.guild), gSettings.eventsInterval * 60 * 1000);
       sendMsg(`Events wiil now happen every ${interval} min!`);
@@ -203,7 +201,6 @@ client.on('voiceStateUpdate', async (oldMember, newMember) => {
   try {
     if (newMember.member.user.bot) return;
     const gSettings = guildsSettings[newMember.guild.id];
-    //console.log(newMember.guild.members.cache.array().map(el => el.user));
     const biggestVoiceChannel = newMember.guild.channels.cache
       .array()
       .filter(el => el.type === 'voice')
