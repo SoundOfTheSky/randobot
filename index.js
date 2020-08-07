@@ -45,12 +45,12 @@ function eventLoop(guild) {
           if (!victim) return;
           console.log('deafing ' + victim.user.username);
           const interval = setInterval(() => {
-            victim.voice.setDeaf(!victim.voice.deaf);
+            if (victim.voice) victim.voice.setDeaf(!victim.voice.deaf);
           }, 2000);
           setTimeout(() => {
             console.log('End of deafing');
             clearInterval(interval);
-            victim.voice.setDeaf(false);
+            if (victim.voice) victim.voice.setDeaf(false);
           }, 30000);
         }
         break;
@@ -64,12 +64,12 @@ function eventLoop(guild) {
           const originalChannel = victim.voice.channel;
           const interval = setInterval(() => {
             const channels = victim.guild.channels.cache.array().filter(el => el.type === 'voice');
-            victim.voice.setChannel(channels[Math.floor(channels.length * Math.random())]);
+            if (victim.voice) victim.voice.setChannel(channels[Math.floor(channels.length * Math.random())]);
           }, 2000);
           setTimeout(() => {
             console.log('End of channelSwapping');
             clearInterval(interval);
-            victim.voice.setChannel(originalChannel);
+            if (victim.voice) victim.voice.setChannel(originalChannel);
           }, 30000);
         }
         break;
@@ -82,7 +82,7 @@ function eventLoop(guild) {
           let play = true;
           console.log('Playing random audio memes');
           function playRandom() {
-            if (guild.voice.connection && play)
+            if (guild.voice && play)
               guild.voice.connection
                 .play(__dirname + '/audio/random/' + sounds[Math.floor(sounds.length * Math.random())])
                 .once('finish', () => playRandom());
@@ -115,7 +115,7 @@ client.once('ready', () => {
   Object.keys(guildsSettings).forEach(guild => {
     console.log(client.guilds.cache.get(guild).name);
     if (!guildsIntevals[guild])
-      guildsIntevals[guild.id] = setInterval(
+      guildsIntevals[guild] = setInterval(
         () => eventLoop(client.guilds.cache.get(guild)),
         guildsSettings[guild].eventsInterval * 60 * 1000,
       );
@@ -175,6 +175,8 @@ client.on('message', msg => {
     const interval = parseInt(message.replace('events interval ', ''));
     if (interval > 0) {
       gSettings.eventsInterval = interval;
+      console.log(msg.guild.id);
+      console.log(guildsIntevals);
       clearInterval(guildsIntevals[msg.guild.id]);
       guildsIntevals[msg.guild.id] = setInterval(() => eventLoop(msg.guild), gSettings.eventsInterval * 60 * 1000);
       sendMsg(`Events wiil now happen every ${interval} min!`);
