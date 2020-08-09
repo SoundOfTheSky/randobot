@@ -18,7 +18,7 @@ if (!fs.existsSync(__dirname + '/settings.json')) {
   Utils.writeJSON(
     {
       token: '',
-      prefix: 'OwO',
+      prefix: 'Randobot',
       saveGuildsSettingsInterval: 10000,
     },
     __dirname + '/settings.json',
@@ -30,6 +30,11 @@ const settings = Utils.readJSON(__dirname + '/settings.json');
 const guildsSettings = Utils.readJSON(__dirname + '/guildsSettings.json');
 const client = new Discord.Client();
 const guildsIntevals = {};
+const eventsDescription = {
+  'Deaf lagging': 'Will toggle deafen for one random victim in voice for 30 seconds.',
+  'Channel swapping': `Selects a random victim in the voice channel and starts sending it to random channels for 30 seconds. The victim will then return to the original channel.`,
+  'Random audio memes': 'Welcome to the cum zone',
+};
 function eventLoop(guild) {
   try {
     const gSettings = guildsSettings[guild.id];
@@ -39,7 +44,7 @@ function eventLoop(guild) {
     });
     switch (events[Math.floor(events.length * Math.random())]) {
       case 'Deaf lagging': {
-        if (guild.voice) {
+        if (guild.voice?.channel) {
           const members = getChannelMembers(guild.voice.channel);
           const victim = members[Math.floor(members.length * Math.random())];
           if (!victim) return;
@@ -52,11 +57,12 @@ function eventLoop(guild) {
             clearInterval(interval);
             if (victim.voice) victim.voice.setDeaf(false);
           }, 30000);
+          gi;
         }
         break;
       }
       case 'Channel swapping': {
-        if (guild.voice) {
+        if (guild.voice?.channel) {
           const members = getChannelMembers(guild.voice.channel);
           const victim = members[Math.floor(members.length * Math.random())];
           if (!victim) return;
@@ -75,7 +81,7 @@ function eventLoop(guild) {
         break;
       }
       case 'Random audio memes': {
-        if (guild.voice) {
+        if (guild.voice?.channel) {
           const members = getChannelMembers(guild.voice.channel);
           if (members.length === 0) return;
           const sounds = fs.readdirSync(__dirname + '/audio/random');
@@ -128,74 +134,79 @@ client.once('ready', () => {
 });
 
 client.on('message', msg => {
-  if (!msg.content.startsWith(settings.prefix) || msg.author.bot || msg.channel.type === 'dm') return;
-  const message = msg.content.replace(settings.prefix + ' ', '');
-  const gSettings = guildsSettings[msg.guild.id];
-  const sendMsg = data => {
-    msg.channel.send(data).then(message => {
-      if (gSettings.deleteMessagesTimeout > 0)
-        setTimeout(() => message.delete(), gSettings.deleteMessagesTimeout * 1000);
-    });
-  };
-  if (gSettings.deleteMessagesTimeout > 0)
-    setTimeout(() => {
-      msg.delete();
-    }, gSettings.deleteMessagesTimeout * 1000);
-  if (message === 'events') {
-    const events = [];
-    Object.keys(guildsSettings[msg.guild.id].events).forEach(event =>
-      events.push({
-        name: event,
-        value: guildsSettings[msg.guild.id].events[event] ? 'Enabled' : 'Disabled',
-      }),
-    );
-    sendMsg(
-      new Discord.MessageEmbed()
-        .setColor('#0099ff')
-        .setTitle('Events')
-        .addFields(...events),
-    );
-  } else if (message === 'events enable') {
-    Object.keys(gSettings.events).forEach(event => (gSettings.events[event] = true));
-    sendMsg(`All events are now enabled!`);
-  } else if (message === 'events disable') {
-    Object.keys(gSettings.events).forEach(event => (gSettings.events[event] = false));
-    sendMsg(`All events are now disabled!`);
-  } else if (message.startsWith('events enable ')) {
-    const eventName = message.replace('events enable ', '');
-    if (!Object.keys(gSettings.events).includes(eventName)) return sendMsg('There are no events with that name');
-    gSettings.events[eventName] = true;
-    sendMsg(`Event "${eventName}" is now enabled and can happen at any moment`);
-  } else if (message.startsWith('events disable ')) {
-    const eventName = message.replace('events disable ', '');
-    if (!Object.keys(gSettings.events).includes(eventName)) return sendMsg('There are no events with that name');
-    gSettings.events[eventName] = false;
-    sendMsg(`Event "${eventName}" is now disabled and will never happen until somebody enables it`);
-  } else if (message.startsWith('events interval ')) {
-    const interval = parseInt(message.replace('events interval ', ''));
-    if (interval > 0) {
-      gSettings.eventsInterval = interval;
-      clearInterval(guildsIntevals[msg.guild.id]);
-      guildsIntevals[msg.guild.id] = setInterval(() => eventLoop(msg.guild), gSettings.eventsInterval * 60 * 1000);
-      sendMsg(`Events wiil now happen every ${interval} min!`);
-    } else sendMsg('Interval must be a positive number');
-  } else if (message.startsWith('clear chat after ')) {
-    const interval = parseInt(message.replace('clear chat after ', ''));
-    if (interval >= 0) {
-      gSettings.deleteMessagesTimeout = interval;
-      if (interval === 0) sendMsg('Bot will now not delete messages.');
-      else sendMsg(`Bot will now delete messages after ${interval} seconds!`);
-    } else sendMsg('Interval must be a positive number');
-  } else if (message === 'autojoin') {
-    gSettings.autojoin = !gSettings.autojoin;
-    if (gSettings.autojoin) sendMsg('Now bot will automatically join to voice channels!');
-    else sendMsg('Now bot will not join voice channels!');
-  } else if (message === 'nickname announcements') {
-    gSettings.nicknameAnnouncements = !gSettings.nicknameAnnouncements;
-    if (gSettings.nicknameAnnouncements)
-      sendMsg('Now bot will say nicknames of people that just joined voice channel!');
-    else sendMsg('Now bot will remain silent!');
-  } else sendMsg(msg.channel, help);
+  try {
+    if (!msg.content.startsWith(settings.prefix) || msg.author.bot || msg.channel.type === 'dm') return;
+    const message = msg.content.replace(settings.prefix + ' ', '');
+    const gSettings = guildsSettings[msg.guild.id];
+    const sendMsg = data => {
+      msg.channel
+        .send(data)
+        .then(
+          message =>
+            gSettings.deleteMessagesTimeout > 0 &&
+            message.delete({ timeout: gSettings.deleteMessagesTimeout * 1000 }).catch(e => {}),
+        );
+    };
+    if (gSettings.deleteMessagesTimeout > 0)
+      msg.delete({ timeout: gSettings.deleteMessagesTimeout * 1000 }).catch(e => {});
+    if (message === 'events') {
+      const events = [];
+      Object.keys(guildsSettings[msg.guild.id].events).forEach(event =>
+        events.push({
+          name: event + ' - ' + (guildsSettings[msg.guild.id].events[event] ? 'Enabled' : 'Disabled'),
+          value: eventsDescription[event],
+        }),
+      );
+      sendMsg(
+        new Discord.MessageEmbed()
+          .setColor('#0099ff')
+          .setTitle('Events')
+          .addFields(...events),
+      );
+    } else if (message === 'events enable') {
+      Object.keys(gSettings.events).forEach(event => (gSettings.events[event] = true));
+      sendMsg(`All events are now enabled!`);
+    } else if (message === 'events disable') {
+      Object.keys(gSettings.events).forEach(event => (gSettings.events[event] = false));
+      sendMsg(`All events are now disabled!`);
+    } else if (message.startsWith('events enable ')) {
+      const eventName = message.replace('events enable ', '');
+      if (!Object.keys(gSettings.events).includes(eventName)) return sendMsg('There are no events with that name');
+      gSettings.events[eventName] = true;
+      sendMsg(`Event "${eventName}" is now enabled and can happen at any moment`);
+    } else if (message.startsWith('events disable ')) {
+      const eventName = message.replace('events disable ', '');
+      if (!Object.keys(gSettings.events).includes(eventName)) return sendMsg('There are no events with that name');
+      gSettings.events[eventName] = false;
+      sendMsg(`Event "${eventName}" is now disabled and will never happen until somebody enables it`);
+    } else if (message.startsWith('events interval ')) {
+      const interval = parseInt(message.replace('events interval ', ''));
+      if (interval > 0) {
+        gSettings.eventsInterval = interval;
+        clearInterval(guildsIntevals[msg.guild.id]);
+        guildsIntevals[msg.guild.id] = setInterval(() => eventLoop(msg.guild), gSettings.eventsInterval * 60 * 1000);
+        sendMsg(`Events will now happen every ${interval} min!`);
+      } else sendMsg('Interval must be a positive number');
+    } else if (message.startsWith('clear chat after ')) {
+      const interval = parseInt(message.replace('clear chat after ', ''));
+      if (interval >= 0) {
+        gSettings.deleteMessagesTimeout = interval;
+        if (interval === 0) sendMsg('Bot will now not delete messages.');
+        else sendMsg(`Bot will now delete messages after ${interval} seconds!`);
+      } else sendMsg('Interval must be a positive number');
+    } else if (message === 'autojoin') {
+      gSettings.autojoin = !gSettings.autojoin;
+      if (gSettings.autojoin) sendMsg('Now bot will automatically join to voice channels!');
+      else sendMsg('Now bot will not join voice channels!');
+    } else if (message === 'nickname announcements') {
+      gSettings.nicknameAnnouncements = !gSettings.nicknameAnnouncements;
+      if (gSettings.nicknameAnnouncements)
+        sendMsg('Now bot will say nicknames of people that just joined voice channel!');
+      else sendMsg('Now bot will remain silent!');
+    } else sendMsg(help);
+  } catch (e) {
+    console.error(e);
+  }
 });
 client.on('voiceStateUpdate', async (oldMember, newMember) => {
   try {
@@ -206,15 +217,14 @@ client.on('voiceStateUpdate', async (oldMember, newMember) => {
       .filter(el => el.type === 'voice')
       .sort((a, b) => getChannelMembers(b).length - getChannelMembers(a).length)[0];
     if (getChannelMembers(biggestVoiceChannel).length) {
-      if (gSettings.autojoin && !biggestVoiceChannel.members.array().find(el => el.user.id === client.user.id))
+      if (gSettings.autojoin && biggestVoiceChannel.id !== newMember.guild.voice?.channel?.id)
         await biggestVoiceChannel.join();
     } else oldMember.channel.leave();
     setTimeout(() => {
       if (
         gSettings.nicknameAnnouncements &&
         newMember.channel &&
-        newMember.guild.voice &&
-        newMember.channel.id === newMember.guild.voice.channel.id &&
+        newMember.channel.id === newMember.guild.voice?.channel?.id &&
         (!oldMember.channel || oldMember.channel.id !== newMember.channel.id)
       ) {
         const connection = getChannelVoiceConnection(newMember.channel);
