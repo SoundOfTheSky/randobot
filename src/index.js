@@ -2,6 +2,11 @@ const Discord = require('discord.js');
 const fs = require('fs');
 
 const Utils = require('./utils');
+const tranlations = {};
+fs.readdirSync(__dirname + '/translations').forEach(lang => {
+  const file = Utils.readJSON(__dirname + '/translations/' + lang);
+  tranlations[file.name] = file;
+});
 const help = `Hi! I'm probably most annoying bot in the universe.
 However you can change my behavior by this commands:
 
@@ -14,7 +19,7 @@ nickname announcements - toggle nickname announcements
 clear chat after [number] - After how many seconds bot will delete messages related to him. Default: 600. If set 0 will never delete messages.
 `;
 if (!fs.existsSync(__dirname + '/settings.json')) {
-  console.log('Created settings.json', 'DONT FORGET TO ADD YOUR TOKEN');
+  console.log('Created settings.json\nDONT FORGET TO ADD YOUR TOKEN');
   Utils.writeJSON(
     {
       token: '',
@@ -48,14 +53,12 @@ function eventLoop(guild) {
           const members = getChannelMembers(guild.voice.channel);
           const victim = members[Math.floor(members.length * Math.random())];
           if (!victim) return;
-          console.log('deafing ' + victim.user.username);
           const interval = setInterval(() => {
-            if (victim.voice) victim.voice.setDeaf(!victim.voice.deaf);
+            if (victim.voice) victim.voice.setDeaf(!victim.voice.deaf).catch(e => {});
           }, 2000);
           setTimeout(() => {
-            console.log('End of deafing');
             clearInterval(interval);
-            if (victim.voice) victim.voice.setDeaf(false);
+            if (victim.voice) victim.voice.setDeaf(false).catch(e => {});
           }, 30000);
           gi;
         }
@@ -66,16 +69,15 @@ function eventLoop(guild) {
           const members = getChannelMembers(guild.voice.channel);
           const victim = members[Math.floor(members.length * Math.random())];
           if (!victim) return;
-          console.log('channelSwapping ' + victim.user.username);
           const originalChannel = victim.voice.channel;
           const interval = setInterval(() => {
             const channels = victim.guild.channels.cache.array().filter(el => el.type === 'voice');
-            if (victim.voice) victim.voice.setChannel(channels[Math.floor(channels.length * Math.random())]);
+            if (victim.voice)
+              victim.voice.setChannel(channels[Math.floor(channels.length * Math.random())]).catch(e => {});
           }, 2000);
           setTimeout(() => {
-            console.log('End of channelSwapping');
             clearInterval(interval);
-            if (victim.voice) victim.voice.setChannel(originalChannel);
+            if (victim.voice) victim.voice.setChannel(originalChannel).catch(e => {});
           }, 30000);
         }
         break;
@@ -86,7 +88,6 @@ function eventLoop(guild) {
           if (members.length === 0) return;
           const sounds = fs.readdirSync(__dirname + '/audio/random');
           let play = true;
-          console.log('Playing random audio memes');
           function playRandom() {
             if (guild.voice && play)
               guild.voice.connection
@@ -94,10 +95,7 @@ function eventLoop(guild) {
                 .once('finish', () => playRandom());
           }
           playRandom();
-          setTimeout(() => {
-            console.log('Random audio memes end');
-            play = false;
-          }, 40000);
+          setTimeout(() => (play = false), 40000);
         }
         break;
       }
@@ -149,12 +147,17 @@ client.on('message', msg => {
     };
     if (gSettings.deleteMessagesTimeout > 0)
       msg.delete({ timeout: gSettings.deleteMessagesTimeout * 1000 }).catch(e => {});
-    if (message === 'events') {
+    if (message === tranlations[gSettings.language]['cmd events']) {
       const events = [];
       Object.keys(guildsSettings[msg.guild.id].events).forEach(event =>
         events.push({
-          name: event + ' - ' + (guildsSettings[msg.guild.id].events[event] ? 'Enabled' : 'Disabled'),
-          value: eventsDescription[event],
+          name:
+            event +
+            ' - ' +
+            (guildsSettings[msg.guild.id].events[event]
+              ? tranlations[gSettings.language]['enabled']
+              : tranlations[gSettings.language]['disabled']),
+          value: tranlations[gSettings.language][event + ' description'],
         }),
       );
       sendMsg(
@@ -163,46 +166,47 @@ client.on('message', msg => {
           .setTitle('Events')
           .addFields(...events),
       );
-    } else if (message === 'events enable') {
+    } else if (message === tranlations[gSettings.language]['cmd events enable']) {
       Object.keys(gSettings.events).forEach(event => (gSettings.events[event] = true));
-      sendMsg(`All events are now enabled!`);
-    } else if (message === 'events disable') {
+      sendMsg(tranlations[gSettings.language]['all events enabled']);
+    } else if (message === tranlations[gSettings.language]['cmd events disable']) {
       Object.keys(gSettings.events).forEach(event => (gSettings.events[event] = false));
-      sendMsg(`All events are now disabled!`);
-    } else if (message.startsWith('events enable ')) {
-      const eventName = message.replace('events enable ', '');
-      if (!Object.keys(gSettings.events).includes(eventName)) return sendMsg('There are no events with that name');
+      sendMsg(tranlations[gSettings.language]['all events disabled']);
+    } else if (message.startsWith(tranlations[gSettings.language]['cmd events enable event'])) {
+      const eventName = message.replace(tranlations[gSettings.language]['cmd events enable event'], '');
+      if (!Object.keys(gSettings.events).includes(eventName))
+        return sendMsg(tranlations[gSettings.language]['no event with name']);
       gSettings.events[eventName] = true;
-      sendMsg(`Event "${eventName}" is now enabled and can happen at any moment`);
-    } else if (message.startsWith('events disable ')) {
-      const eventName = message.replace('events disable ', '');
-      if (!Object.keys(gSettings.events).includes(eventName)) return sendMsg('There are no events with that name');
+      sendMsg(tranlations[gSettings.language]['event enabled'].replace('$eventName', eventName));
+    } else if (message.startsWith(tranlations[gSettings.language]['cmd events disable event'])) {
+      const eventName = message.replace(tranlations[gSettings.language]['cmd events disable event'], '');
+      if (!Object.keys(gSettings.events).includes(eventName))
+        return sendMsg(tranlations[gSettings.language]['no event with name']);
       gSettings.events[eventName] = false;
-      sendMsg(`Event "${eventName}" is now disabled and will never happen until somebody enables it`);
-    } else if (message.startsWith('events interval ')) {
-      const interval = parseInt(message.replace('events interval ', ''));
+      sendMsg(tranlations[gSettings.language]['event disabled'].replace('$eventName', eventName));
+    } else if (message.startsWith(tranlations[gSettings.language]['cmd events interval'])) {
+      const interval = parseInt(message.replace(tranlations[gSettings.language]['cmd events interval'], ''));
       if (interval > 0) {
         gSettings.eventsInterval = interval;
         clearInterval(guildsIntevals[msg.guild.id]);
         guildsIntevals[msg.guild.id] = setInterval(() => eventLoop(msg.guild), gSettings.eventsInterval * 60 * 1000);
-        sendMsg(`Events will now happen every ${interval} min!`);
-      } else sendMsg('Interval must be a positive number');
-    } else if (message.startsWith('clear chat after ')) {
-      const interval = parseInt(message.replace('clear chat after ', ''));
+        sendMsg(tranlations[gSettings.language]['inerval change'].replace('$interval', interval));
+      } else sendMsg(tranlations[gSettings.language]['interval number error']);
+    } else if (message.startsWith(tranlations[gSettings.language]['cmd clear chat after'])) {
+      const interval = parseInt(message.replace(tranlations[gSettings.language]['cmd clear chat after'], ''));
       if (interval >= 0) {
         gSettings.deleteMessagesTimeout = interval;
-        if (interval === 0) sendMsg('Bot will now not delete messages.');
-        else sendMsg(`Bot will now delete messages after ${interval} seconds!`);
-      } else sendMsg('Interval must be a positive number');
-    } else if (message === 'autojoin') {
+        if (interval === 0) sendMsg(tranlations[gSettings.language]['chat clear interval 0']);
+        else sendMsg(tranlations[gSettings.language]['chat clear interval change']);
+      } else sendMsg(tranlations[gSettings.language]['interval number error']);
+    } else if (message === tranlations[gSettings.language]['autojoin']) {
       gSettings.autojoin = !gSettings.autojoin;
-      if (gSettings.autojoin) sendMsg('Now bot will automatically join to voice channels!');
-      else sendMsg('Now bot will not join voice channels!');
-    } else if (message === 'nickname announcements') {
+      if (gSettings.autojoin) sendMsg(tranlations[gSettings.language]['autojoin enabled']);
+      else sendMsg(tranlations[gSettings.language]['autojoin disabled']);
+    } else if (message === tranlations[gSettings.language]['nickname announcements']) {
       gSettings.nicknameAnnouncements = !gSettings.nicknameAnnouncements;
-      if (gSettings.nicknameAnnouncements)
-        sendMsg('Now bot will say nicknames of people that just joined voice channel!');
-      else sendMsg('Now bot will remain silent!');
+      if (gSettings.nicknameAnnouncements) sendMsg(tranlations[gSettings.language]['nickname announcements enabled']);
+      else sendMsg(tranlations[gSettings.language]['nickname announcements disabled']);
     } else sendMsg(help);
   } catch (e) {
     console.error(e);
@@ -237,6 +241,19 @@ client.on('voiceStateUpdate', async (oldMember, newMember) => {
     console.error(e);
   }
 });
+function changeLanguageDialog(channel) {
+  const gSettings = guildsSettings[channel.guild.id];
+  channel.send('Choose language:').then(message =>
+    Promise.all(
+      Object.values(tranlations).map(t => message.react(client.emojis.cache.find(emoji => emoji.name === t.flag))),
+    ).then(() => {
+      function listener(reaction,user) {
+        if(reaction.emoji.name)
+      }
+      client.on('messageReactionAdd');
+    }),
+  );
+}
 function guildCreate(guild) {
   guildsSettings[guild.id] = {
     events: {
@@ -248,6 +265,7 @@ function guildCreate(guild) {
     autojoin: true,
     nicknameAnnouncements: true,
     eventsInterval: 90,
+    language: 'en',
   };
   guild.channels.cache.array()[0].send(help);
   guildsIntevals[guild.id] = setInterval(() => eventLoop(guild), 90 * 60 * 1000);
