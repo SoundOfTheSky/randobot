@@ -10,7 +10,7 @@ if (!fs.existsSync(__dirname + '/settings.json')) {
     {
       token: '',
       prefix: 'Randobot',
-      saveGuildsSettingsInterval: 10000,
+      saveGuildsSettingsInterval: 3600000,
       defaultLanguage: 'en',
     },
     __dirname + '/settings.json',
