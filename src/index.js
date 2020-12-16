@@ -1,23 +1,9 @@
 const Discord = require('discord.js');
 const fs = require('fs');
-
 const Utils = require('./utils');
-const tranlations = {};
-fs.readdirSync(__dirname + '/translations').forEach(lang => {
-  const file = Utils.readJSON(__dirname + '/translations/' + lang);
-  tranlations[file.name] = file;
-});
-const help = `Hi! I'm probably most annoying bot in the universe.
-However you can change my behavior by this commands:
+const discordEmojis = require('./discord_emojis.json');
 
-events - List of events
-events enable/disable - enable/disable all events
-events enable/disable [name of event] - enable/disable specific event
-events interval [number] - set interval between events in minutes. Default: 90
-autojoin - toggle autojoin to voice channels
-nickname announcements - toggle nickname announcements
-clear chat after [number] - After how many seconds bot will delete messages related to him. Default: 600. If set 0 will never delete messages.
-`;
+// Creating files
 if (!fs.existsSync(__dirname + '/settings.json')) {
   console.log('Created settings.json\nDONT FORGET TO ADD YOUR TOKEN');
   Utils.writeJSON(
@@ -25,81 +11,102 @@ if (!fs.existsSync(__dirname + '/settings.json')) {
       token: '',
       prefix: 'Randobot',
       saveGuildsSettingsInterval: 10000,
+      defaultLanguage: 'en',
     },
     __dirname + '/settings.json',
   );
 }
-if (!fs.existsSync(__dirname + '/guildsSettings.json')) Utils.writeJSON({}, __dirname + '/guildsSettings.json');
-
 const settings = Utils.readJSON(__dirname + '/settings.json');
+const tranlations = {};
+fs.readdirSync(__dirname + '/translations').forEach(lang => {
+  const file = Utils.readJSON(__dirname + '/translations/' + lang);
+  tranlations[file.name] = file;
+});
+Object.keys(tranlations).forEach(
+  k => (tranlations[k] = { ...tranlations[settings.defaultLanguage], ...tranlations[k] }),
+);
+if (!fs.existsSync(__dirname + '/guildsSettings.json')) Utils.writeJSON({}, __dirname + '/guildsSettings.json');
 const guildsSettings = Utils.readJSON(__dirname + '/guildsSettings.json');
+
 const client = new Discord.Client();
 const guildsIntevals = {};
-const eventsDescription = {
-  'Deaf lagging': 'Will toggle deafen for one random victim in voice for 30 seconds.',
-  'Channel swapping': `Selects a random victim in the voice channel and starts sending it to random channels for 30 seconds. The victim will then return to the original channel.`,
-  'Random audio memes': 'Welcome to the cum zone',
+
+const sendMsg = (channel, msg, deleteAfter) =>
+  channel.send(msg).then(message => deleteAfter > 0 && message.delete({ timeout: deleteAfter * 1000 }).catch(e => {}));
+const getGuildVC = id => client.voice.connections.get(id);
+const getChannelMembers = channel => channel.members.array().filter(el => !el.user.bot);
+
+const events = {
+  dl: {
+    title: 'Deaf lagging',
+    voice: true,
+    handler: (guild, connection) => {
+      const members = getChannelMembers(connection.channel);
+      const victim = members[Math.floor(members.length * Math.random())];
+      if (!victim) return;
+      const interval = setInterval(() => {
+        if (victim.voice) victim.voice.setDeaf(!victim.voice.deaf).catch(e => {});
+      }, 2000);
+      setTimeout(async () => {
+        clearInterval(interval);
+        if (victim.voice) victim.voice.setDeaf(false).catch(e => {});
+      }, 10000 + Math.floor(Math.random() * 50000));
+    },
+  },
+  cs: {
+    title: 'Channel swapping',
+    voice: true,
+    handler: (guild, connection) => {
+      const members = getChannelMembers(connection.channel);
+      const victim = members[Math.floor(members.length * Math.random())];
+      if (!victim) return;
+      const originalChannel = victim.voice.channel;
+      const interval = setInterval(() => {
+        const channels = victim.guild.channels.cache.array().filter(el => el.type === 'voice');
+        if (victim.voice) victim.voice.setChannel(channels[Math.floor(channels.length * Math.random())]).catch(e => {});
+      }, 4000);
+      setTimeout(async () => {
+        clearInterval(interval);
+        if (victim.voice) victim.voice.setChannel(originalChannel).catch(e => {});
+      }, 10000 + Math.floor(Math.random() * 50000));
+    },
+  },
+  cum: {
+    title: 'CUM',
+    voice: true,
+    handler: (guild, connection) => {
+      const sounds = fs.readdirSync(__dirname + '/audio/cum');
+      let play = true;
+      function playRandom() {
+        connection
+          .play(__dirname + '/audio/cum/' + sounds[Math.floor(sounds.length * Math.random())])
+          .once('finish', () => play && playRandom());
+      }
+      playRandom();
+      setTimeout(() => (play = false), 10000 + Math.floor(Math.random() * 50000));
+    },
+  },
+  lb: {
+    title: 'Low bitrate',
+    voice: true,
+    handler: (guild, connection) => {
+      const originalBitrate = connection.channel.bitrate;
+      connection.channel.setBitrate(8000);
+      setTimeout(() => connection.channel.setBitrate(originalBitrate), 10000 + Math.floor(Math.random() * 50000));
+    },
+  },
 };
-function eventLoop(guild) {
+
+function eventLoop(guildId) {
   try {
-    const gSettings = guildsSettings[guild.id];
-    const events = [];
-    Object.keys(gSettings.events).forEach(el => {
-      if (gSettings.events[el]) events.push(el);
-    });
-    switch (events[Math.floor(events.length * Math.random())]) {
-      case 'Deaf lagging': {
-        if (guild.voice?.channel) {
-          const members = getChannelMembers(guild.voice.channel);
-          const victim = members[Math.floor(members.length * Math.random())];
-          if (!victim) return;
-          const interval = setInterval(() => {
-            if (victim.voice) victim.voice.setDeaf(!victim.voice.deaf).catch(e => {});
-          }, 2000);
-          setTimeout(() => {
-            clearInterval(interval);
-            if (victim.voice) victim.voice.setDeaf(false).catch(e => {});
-          }, 30000);
-          gi;
-        }
-        break;
-      }
-      case 'Channel swapping': {
-        if (guild.voice?.channel) {
-          const members = getChannelMembers(guild.voice.channel);
-          const victim = members[Math.floor(members.length * Math.random())];
-          if (!victim) return;
-          const originalChannel = victim.voice.channel;
-          const interval = setInterval(() => {
-            const channels = victim.guild.channels.cache.array().filter(el => el.type === 'voice');
-            if (victim.voice)
-              victim.voice.setChannel(channels[Math.floor(channels.length * Math.random())]).catch(e => {});
-          }, 2000);
-          setTimeout(() => {
-            clearInterval(interval);
-            if (victim.voice) victim.voice.setChannel(originalChannel).catch(e => {});
-          }, 30000);
-        }
-        break;
-      }
-      case 'Random audio memes': {
-        if (guild.voice?.channel) {
-          const members = getChannelMembers(guild.voice.channel);
-          if (members.length === 0) return;
-          const sounds = fs.readdirSync(__dirname + '/audio/random');
-          let play = true;
-          function playRandom() {
-            if (guild.voice && play)
-              guild.voice.connection
-                .play(__dirname + '/audio/random/' + sounds[Math.floor(sounds.length * Math.random())])
-                .once('finish', () => playRandom());
-          }
-          playRandom();
-          setTimeout(() => (play = false), 40000);
-        }
-        break;
-      }
-    }
+    const guild = client.guilds.cache.get(guildId);
+    const gSettings = guildsSettings[guildId];
+    const connection = getGuildVC(guildId);
+    const eventCodes = Object.keys(events).filter(
+      k => !gSettings.de.includes(k) && ((events[k].voice && connection) || !events[k].voice),
+    );
+    if (!eventCodes.length) return;
+    events[eventCodes[Math.floor(eventCodes.length * Math.random())]].handler(guild, connection);
   } catch (e) {
     console.error(e);
   }
@@ -114,169 +121,175 @@ client.once('ready', () => {
     if (found > -1) leftGuilds.splice(found, 1);
     else guildCreate(guild);
   });
-  leftGuilds.forEach(guild => guildDelete(client.guilds.cache.get(guild)));
+  leftGuilds.forEach(id => guildDelete(id));
   console.log(`Guilds: ${Object.keys(guildsSettings).length}`);
   Object.keys(guildsSettings).forEach(guild => {
     console.log(client.guilds.cache.get(guild).name);
     if (!guildsIntevals[guild])
-      guildsIntevals[guild] = setInterval(
-        () => eventLoop(client.guilds.cache.get(guild)),
-        guildsSettings[guild].eventsInterval * 60 * 1000,
-      );
+      guildsIntevals[guild] = setInterval(() => eventLoop(guild), guildsSettings[guild].ei * 60 * 1000);
   });
   Utils.writeJSON(guildsSettings, __dirname + '/guildsSettings.json');
   setInterval(
     () => Utils.writeJSON(guildsSettings, __dirname + '/guildsSettings.json'),
     settings.saveGuildsSettingsInterval,
   );
+  client.user.setActivity(settings.prefix, { type: 'LISTENING' });
 });
-
-client.on('message', msg => {
+client.on('message', async msg => {
   try {
-    if (!msg.content.startsWith(settings.prefix) || msg.author.bot || msg.channel.type === 'dm') return;
-    const message = msg.content.replace(settings.prefix + ' ', '');
+    if (
+      (!msg.content.startsWith(settings.prefix) && !msg.mentions.has(client.user)) ||
+      msg.author.bot ||
+      msg.channel.type === 'dm'
+    )
+      return;
+    const message = msg.content.slice(msg.content.indexOf(' ') + 1);
     const gSettings = guildsSettings[msg.guild.id];
-    const sendMsg = data => {
-      msg.channel
-        .send(data)
-        .then(
-          message =>
-            gSettings.deleteMessagesTimeout > 0 &&
-            message.delete({ timeout: gSettings.deleteMessagesTimeout * 1000 }).catch(e => {}),
-        );
-    };
-    if (gSettings.deleteMessagesTimeout > 0)
-      msg.delete({ timeout: gSettings.deleteMessagesTimeout * 1000 }).catch(e => {});
-    if (message === tranlations[gSettings.language]['cmd events']) {
-      const events = [];
-      Object.keys(guildsSettings[msg.guild.id].events).forEach(event =>
-        events.push({
-          name:
-            event +
-            ' - ' +
-            (guildsSettings[msg.guild.id].events[event]
-              ? tranlations[gSettings.language]['enabled']
-              : tranlations[gSettings.language]['disabled']),
-          value: tranlations[gSettings.language][event + ' description'],
-        }),
-      );
-      sendMsg(
+    const words = tranlations[gSettings.l || settings.defaultLanguage];
+    const send = data => sendMsg(msg.channel, data, gSettings.dmt);
+    if (gSettings.dmt > 0) msg.delete({ timeout: gSettings.dmt * 1000 }).catch(e => {});
+    if (message === words['cmd events']) {
+      send(
         new Discord.MessageEmbed()
           .setColor('#0099ff')
           .setTitle('Events')
-          .addFields(...events),
+          .addFields(
+            ...Object.keys(events).map(k => ({
+              name: `${events[k].title} - ${gSettings.de.includes(k) ? words.disabled : words.enabled}`,
+              value: words[k + ' description'],
+            })),
+          ),
       );
-    } else if (message === tranlations[gSettings.language]['cmd events enable']) {
-      Object.keys(gSettings.events).forEach(event => (gSettings.events[event] = true));
-      sendMsg(tranlations[gSettings.language]['all events enabled']);
-    } else if (message === tranlations[gSettings.language]['cmd events disable']) {
-      Object.keys(gSettings.events).forEach(event => (gSettings.events[event] = false));
-      sendMsg(tranlations[gSettings.language]['all events disabled']);
-    } else if (message.startsWith(tranlations[gSettings.language]['cmd events enable event'])) {
-      const eventName = message.replace(tranlations[gSettings.language]['cmd events enable event'], '');
-      if (!Object.keys(gSettings.events).includes(eventName))
-        return sendMsg(tranlations[gSettings.language]['no event with name']);
-      gSettings.events[eventName] = true;
-      sendMsg(tranlations[gSettings.language]['event enabled'].replace('$eventName', eventName));
-    } else if (message.startsWith(tranlations[gSettings.language]['cmd events disable event'])) {
-      const eventName = message.replace(tranlations[gSettings.language]['cmd events disable event'], '');
-      if (!Object.keys(gSettings.events).includes(eventName))
-        return sendMsg(tranlations[gSettings.language]['no event with name']);
-      gSettings.events[eventName] = false;
-      sendMsg(tranlations[gSettings.language]['event disabled'].replace('$eventName', eventName));
-    } else if (message.startsWith(tranlations[gSettings.language]['cmd events interval'])) {
-      const interval = parseInt(message.replace(tranlations[gSettings.language]['cmd events interval'], ''));
+    } else if (message === words['cmd events enable']) {
+      gSettings.de = [];
+      send(words['all events enabled']);
+    } else if (message === words['cmd events disable']) {
+      gSettings.de = Object.keys(events);
+      send(words['all events disabled']);
+    } else if (message.startsWith(words['cmd events disable event'])) {
+      const eventName = message.replace(words['cmd events disable event'], '');
+      const eventCode = Object.keys(events).find(k => events[k].title === eventName);
+      if (!eventCode) return send(words['no event with name']);
+      if (!gSettings.de.includes(eventCode)) gSettings.de.push(eventCode);
+      send(words['event disabled'].replace('$eventName', eventName));
+    } else if (message.startsWith(words['cmd events enable event'])) {
+      const eventName = message.replace(words['cmd events enable event'], '');
+      const eventCode = Object.keys(events).find(k => events[k].title === eventName);
+      if (!eventCode) return send(words['no event with name']);
+      gSettings.de = gSettings.de.filter(e => e !== eventCode);
+      send(words['event enabled'].replace('$eventName', eventName));
+    } else if (message.startsWith(words['cmd events interval'])) {
+      const interval = parseInt(message.replace(words['cmd events interval'], ''));
       if (interval > 0) {
-        gSettings.eventsInterval = interval;
+        gSettings.ei = interval;
         clearInterval(guildsIntevals[msg.guild.id]);
-        guildsIntevals[msg.guild.id] = setInterval(() => eventLoop(msg.guild), gSettings.eventsInterval * 60 * 1000);
-        sendMsg(tranlations[gSettings.language]['inerval change'].replace('$interval', interval));
-      } else sendMsg(tranlations[gSettings.language]['interval number error']);
-    } else if (message.startsWith(tranlations[gSettings.language]['cmd clear chat after'])) {
-      const interval = parseInt(message.replace(tranlations[gSettings.language]['cmd clear chat after'], ''));
+        guildsIntevals[msg.guild.id] = setInterval(() => eventLoop(msg.guild.id), gSettings.ei * 60 * 1000);
+        send(words['interval change'].replace('$interval', interval));
+      } else send(words['interval number error']);
+    } else if (message.startsWith(words['cmd clear chat after'])) {
+      const interval = parseInt(message.replace(words['cmd clear chat after'], ''));
       if (interval >= 0) {
-        gSettings.deleteMessagesTimeout = interval;
-        if (interval === 0) sendMsg(tranlations[gSettings.language]['chat clear interval 0']);
-        else sendMsg(tranlations[gSettings.language]['chat clear interval change']);
-      } else sendMsg(tranlations[gSettings.language]['interval number error']);
-    } else if (message === tranlations[gSettings.language]['autojoin']) {
-      gSettings.autojoin = !gSettings.autojoin;
-      if (gSettings.autojoin) sendMsg(tranlations[gSettings.language]['autojoin enabled']);
-      else sendMsg(tranlations[gSettings.language]['autojoin disabled']);
-    } else if (message === tranlations[gSettings.language]['nickname announcements']) {
-      gSettings.nicknameAnnouncements = !gSettings.nicknameAnnouncements;
-      if (gSettings.nicknameAnnouncements) sendMsg(tranlations[gSettings.language]['nickname announcements enabled']);
-      else sendMsg(tranlations[gSettings.language]['nickname announcements disabled']);
-    } else sendMsg(help);
+        gSettings.dmt = interval;
+        if (interval === 0) send(words['chat clear interval 0']);
+        else send(words['chat clear interval change'].replace('$interval', interval));
+      } else send(words['interval number error']);
+    } else if (message === words['cmd autojoin']) {
+      gSettings.aj = !gSettings.aj;
+      if (gSettings.aj) send(words['autojoin enabled']);
+      else send(words['autojoin disabled']);
+    } else if (message === words['cmd nickname announcements']) {
+      gSettings.na = !gSettings.na;
+      if (gSettings.na) send(words['nickname announcements enabled']);
+      else send(words['nickname announcements disabled']);
+    } else if (message === words['cmd language']) changeLanguageDialog(msg.channel);
+    else if (message === words['cmd join']) {
+      if (!msg.member.voice?.channelID) return send(words['you are not in voice channel']);
+      const connection = getGuildVC(msg.guild.id);
+      if (connection) connection.channel.leave();
+      msg.member.voice.channel.join();
+    } else send(words['help']);
   } catch (e) {
     console.error(e);
   }
 });
 client.on('voiceStateUpdate', async (oldMember, newMember) => {
   try {
-    if (newMember.member.user.bot) return;
+    if (newMember.member.user.bot || oldMember.channelID === newMember.channelID) return;
     const gSettings = guildsSettings[newMember.guild.id];
-    const biggestVoiceChannel = newMember.guild.channels.cache
-      .array()
-      .filter(el => el.type === 'voice')
-      .sort((a, b) => getChannelMembers(b).length - getChannelMembers(a).length)[0];
-    if (getChannelMembers(biggestVoiceChannel).length) {
-      if (gSettings.autojoin && biggestVoiceChannel.id !== newMember.guild.voice?.channel?.id)
-        await biggestVoiceChannel.join();
-    } else oldMember.channel.leave();
-    setTimeout(() => {
+    let connection = getGuildVC(newMember.guild.id);
+    if (gSettings.aj) {
+      const VCs = newMember.guild.channels.cache.array().filter(el => el.type === 'voice');
+      const VCmembers = VCs.map(vc => getChannelMembers(vc).length);
+      const biggsetVCi = VCs.map((_, i) => i).sort((a, b) => VCmembers[b] - VCmembers[a])[0];
       if (
-        gSettings.nicknameAnnouncements &&
-        newMember.channel &&
-        newMember.channel.id === newMember.guild.voice?.channel?.id &&
-        (!oldMember.channel || oldMember.channel.id !== newMember.channel.id)
+        VCmembers[biggsetVCi] &&
+        (!connection || connection.channel.id !== newMember.channelID) &&
+        VCs[biggsetVCi].id === newMember.channelID
       ) {
-        const connection = getChannelVoiceConnection(newMember.channel);
-
-        if (connection) connection.play(__dirname + `/audio/nicknameAnnouncements/${newMember.member.user.id}.mp3`);
-        //eventLoop(newMember.guild);
+        if (connection) {
+          oldMember.channel.leave();
+          await Utils.wait(1000);
+        }
+        connection = await VCs[biggsetVCi].join();
       }
-    }, 500);
+    }
+    if (connection) {
+      if (connection.channel.id === newMember.channelID) {
+        if (gSettings.na) {
+          await Utils.wait(500);
+          connection.play(__dirname + `/audio/nicknameAnnouncements/${newMember.member.user.id}.mp3`);
+        }
+      } else if (!getChannelMembers(connection.channel).length) connection.channel.leave();
+    }
   } catch (e) {
     console.error(e);
   }
 });
-function changeLanguageDialog(channel) {
-  const gSettings = guildsSettings[channel.guild.id];
-  channel.send('Choose language:').then(message =>
-    Promise.all(
-      Object.values(tranlations).map(t => message.react(client.emojis.cache.find(emoji => emoji.name === t.flag))),
-    ).then(() => {
-      function listener(reaction,user) {
-        if(reaction.emoji.name)
-      }
-      client.on('messageReactionAdd');
-    }),
-  );
+async function changeLanguageDialog(channel) {
+  try {
+    const gSettings = guildsSettings[channel.guild.id];
+    const message = await channel.send('Choose language:');
+    const flags = Object.values(tranlations).map(t => discordEmojis[t.flag]);
+    await Promise.all(flags.map(f => message.react(f)));
+    const deleteTimeout = setTimeout(() => {
+      message.delete().catch(e => {});
+    }, gSettings.dmt * 1000);
+    const reaction = (
+      await message.awaitReactions((r, u) => !u.bot && flags.includes(r.emoji.name), {
+        max: 1,
+        timeout: gSettings.dmt * 1000,
+      })
+    ).keyArray()[0];
+    clearTimeout(deleteTimeout);
+    message.delete().catch(e => {});
+    gSettings.l = Object.values(tranlations)[flags.indexOf(reaction)].name;
+  } catch (e) {
+    console.error(e);
+  }
 }
 function guildCreate(guild) {
   guildsSettings[guild.id] = {
-    events: {
-      'Channel swapping': true,
-      'Deaf lagging': true,
-      'Random audio memes': true,
-    },
-    deleteMessagesTimeout: 600,
-    autojoin: true,
-    nicknameAnnouncements: true,
-    eventsInterval: 90,
-    language: 'en',
+    //disabled events
+    de: [],
+    // deleteMessagesTimeout
+    dmt: 60,
+    // autojoin
+    aj: 1,
+    // nicknameAnnouncements
+    na: 1,
+    // eventsInterval
+    ei: 60,
+    // language
+    l: 'en',
   };
-  guild.channels.cache.array()[0].send(help);
-  guildsIntevals[guild.id] = setInterval(() => eventLoop(guild), 90 * 60 * 1000);
+  //guild.channels.cache.array()[0].send(translation.en.help);
+  guildsIntevals[guild.id] = setInterval(() => eventLoop(guild.id), 60 * 60 * 1000);
 }
 client.on('guildCreate', guildCreate);
-function guildDelete(guild) {
-  delete guildsSettings[guild.id];
-  clearInterval(guildsIntevals[guild.id]);
-  delete guildsIntevals[guild.id];
+function guildDelete(id) {
+  delete guildsSettings[id];
+  clearInterval(guildsIntevals[id]);
+  delete guildsIntevals[id];
 }
 client.on('guildDelete', guildDelete);
-const getChannelVoiceConnection = channel => client.voice.connections.get(channel.guild.id);
-const getChannelMembers = channel => channel.members.array().filter(el => !el.user.bot);
 client.login(settings.token);
