@@ -1,6 +1,6 @@
 {
   "flag": ":flag_us:",
-  "name": "en",
+  "name": "English",
   "localName": "English",
   "help": "Hi! I'm probably most annoying bot in the universe.\nHowever you can change my behavior by this commands:\n\nlanguage - Change language of bot.\nevents - List of events.\nevents enable/disable - Enable/disable all events.\nevents enable/disable [name of event] - Enable/disable specific event.\nevents interval [number] - Set interval between events in minutes. Default: 60.\nautojoin - Toggle autojoin to voice channels.\nnickname announcements - Toggle nickname announcements.\nclear chat after [number] - After how many seconds bot will delete messages related to him. Default: 60. If set to 0 will never delete messages.\njoin - Bot will join your voice channel.",
   "dl description": "Will toggle deafen for one random victim in voice for 10-60 seconds.",
@@ -23,6 +23,8 @@
   "autojoin disabled": "Now bot will not join voice channels!",
   "nickname announcements enabled": "Now bot will say nicknames of people that just joined voice channel!",
   "nickname announcements disabled": "Now bot will remain silent!",
+  "language changed": "Language changed to $language.",
+  "language not found": "Language not found.",
   "you are not in voice channel": "You're not in voice channel, dumb.",
   "cmd events": "events",
   "cmd events enable": "events enable",
