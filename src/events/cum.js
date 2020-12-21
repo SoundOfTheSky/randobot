@@ -6,6 +6,7 @@ module.exports = {
   id: 'cum',
   title: 'CUM',
   voice: true,
+  event: 'loop',
   handler: async guild => {
     const connection = Utils.getGuildVC(guild.id);
     let play = true;

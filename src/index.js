@@ -7,7 +7,7 @@ Utils.client = client;
 client.once('ready', async () => {
   console.log('Logged in!');
   /* STARTUP CONFIGURATION */
-  client.tranlations = Object.fromEntries(
+  client.translations = Object.fromEntries(
     await Promise.all(
       (await fs.readdir(__dirname + '/translations')).map(async f => {
         const file = await Utils.readJSON(__dirname + '/translations/' + f);
@@ -15,8 +15,9 @@ client.once('ready', async () => {
       }),
     ),
   );
-  Object.keys(client.tranlations).forEach(
-    k => (client.tranlations[k] = { ...client.tranlations[client.settings.defaultLanguage], ...client.tranlations[k] }),
+  Object.keys(client.translations).forEach(
+    k =>
+      (client.translations[k] = { ...client.translations[client.settings.defaultLanguage], ...client.translations[k] }),
   );
   if (!(await Utils.fileExists(__dirname + '/guildsSettings.json')))
     await Utils.writeJSON({}, __dirname + '/guildsSettings.json');
@@ -29,17 +30,19 @@ client.once('ready', async () => {
   async function syncGuilds() {
     const guildsAreIn = client.guilds.cache.array();
     const leftGuilds = Object.keys(client.guildsSettings);
-    guildsAreIn.forEach(guild => {
+    for (const guild of guildsAreIn) {
       const found = leftGuilds.indexOf(guild.id);
       if (found > -1) leftGuilds.splice(found, 1);
-      else guildCreate(guild.id);
-    });
+      else await guildCreate(guild.id);
+    }
     leftGuilds.forEach(id => guildDelete(id));
     console.log(`Guilds: ${Object.keys(client.guildsSettings).length}`);
     Object.keys(client.guildsSettings).forEach(guild => {
       console.log(client.guilds.cache.get(guild).name);
-      if (!client.guildsIntevals[guild])
-        client.guildsIntevals[guild] = setInterval(() => eventLoop(guild), client.guildsSettings[guild].ei * 60 * 1000);
+      if (!client.guildsIntevals[guild]) {
+        const gSettings = client.guildsSettings[guild];
+        client.guildsIntevals[guild] = setInterval(() => eventLoop(guild), gSettings.ei * 60 * 1000);
+      }
     });
     await Utils.writeJSON(client.guildsSettings, __dirname + '/guildsSettings.json');
     setInterval(
@@ -47,28 +50,50 @@ client.once('ready', async () => {
       client.settings.saveGuildsSettingsInterval,
     );
   }
-  function guildCreate(id) {
-    client.guildsSettings[id] = {
-      //disabled events
-      de: [],
-      // deleteMessagesTimeout
-      dmt: 60,
-      // autojoin
-      aj: 1,
-      // nicknameAnnouncements
-      na: 1,
-      // eventsInterval
-      ei: 60,
-      // language
-      l: 'en',
-    };
-    //guild.channels.cache.array()[0].send(translation.en.help);
-    client.guildsIntevals[id] = setInterval(() => eventLoop(id), 60 * 60 * 1000);
-    client.user.setActivity(`${client.settings.prefix} or @ on ${Object.keys(client.guildsSettings).length} servers`, {
-      type: 'LISTENING',
-    });
+  async function guildCreate(id) {
+    console.log('Guild create: ' + id);
+    try {
+      const guild = client.guilds.cache.get(id);
+      if (!guild.me.hasPermission('ADMINISTRATOR')) {
+        setImmediate(async () => {
+          await (await client.users.fetch(guild.ownerID)).send(
+            `Bot requires admin permissions. Invite with a link: ` +
+              (await client.generateInvite({
+                permissions: ['ADMINISTRATOR'],
+              })),
+          );
+          guild.leave();
+        });
+      } else {
+        client.guildsSettings[id] = {
+          //disabled events
+          de: [],
+          // deleteMessagesTimeout
+          dmt: 60,
+          // autojoin
+          aj: 1,
+          // eventsInterval
+          ei: 60,
+          // language
+          l: 'en',
+          // only admin can
+          //oa: 0,
+        };
+        //guild.channels.cache.array()[0].send(translation.en.help);
+        client.guildsIntevals[id] = setInterval(() => eventLoop(id), 60 * 60 * 1000);
+        client.user.setActivity(
+          `${client.settings.prefix} or @ on ${Object.keys(client.guildsSettings).length} servers`,
+          {
+            type: 'LISTENING',
+          },
+        );
+      }
+    } catch (e) {
+      console.log(e);
+    }
   }
   function guildDelete(id) {
+    console.log('Guild delete: ' + id);
     delete client.guildsSettings[id];
     clearInterval(client.guildsIntevals[id]);
     delete client.guildsIntevals[id];
@@ -79,21 +104,51 @@ client.once('ready', async () => {
   // Events
   client.on('message', async msg => {
     try {
-      if (
-        (!msg.content.startsWith(client.settings.prefix) && !msg.mentions.has(client.user)) ||
-        msg.author.bot ||
-        msg.channel.type === 'dm'
-      )
-        return;
-      const message = msg.content.slice(msg.content.indexOf(' ') + 1);
+      if (msg.channel.type === 'dm') return;
       const gSettings = client.guildsSettings[msg.guild.id];
-      const words = client.tranlations[gSettings.l || client.settings.defaultLanguage];
+      client.events.forEach(
+        e =>
+          e.event === 'message' &&
+          !gSettings.de.includes(e.id) &&
+          (!e.voice || connection) &&
+          e.handler(msg) &&
+          (!gSettings.oa || msg.member.hasPermission('BAN_MEMBERS')),
+      );
+      if ((!msg.content.startsWith(client.settings.prefix) && !msg.mentions.has(client.user)) || msg.author.bot) return;
+      if (Math.random() < 0.01) {
+        client.user.setActivity(`you scream in agony`, { type: 'LISTENING' });
+        setTimeout(
+          () =>
+            client.user.setActivity(
+              `${client.settings.prefix} or @ on ${Object.keys(client.guildsSettings).length} servers`,
+              {
+                type: 'LISTENING',
+              },
+            ),
+          1000 * 60 * 10,
+        );
+      }
+      const message = msg.content.slice(msg.content.indexOf(' ') + 1);
+      const words = client.translations[gSettings.l || client.settings.defaultLanguage];
       if (gSettings.dmt > 0) msg.delete({ timeout: gSettings.dmt * 1000 }).catch(e => {});
       const cmd = client.commands
         .filter(c => message.startsWith(words[c.name]))
         .sort((a, b) => b.name.length - a.name.length)[0];
       if (cmd) cmd.handler(msg, gSettings, words, message.replace(words[cmd.name], '').trim());
-      else Utils.sendMsg(msg.channel, words['help'], gSettings.dmt);
+      else
+        Utils.sendMsg(
+          msg.channel,
+          new Discord.MessageEmbed()
+            .setColor('#0099ff')
+            .setTitle(words['commands title'])
+            .addFields(
+              ...client.commands.map(cmd => ({
+                name: words[cmd.name + ' title'],
+                value: words[cmd.name + ' description'],
+              })),
+            ),
+          gSettings.dmt,
+        );
     } catch (e) {
       console.error(e);
     }
@@ -119,14 +174,7 @@ client.once('ready', async () => {
           connection = await VCs[biggsetVCi].join();
         }
       }
-      if (connection) {
-        if (connection.channel.id === newMember.channelID) {
-          if (gSettings.na) {
-            await Utils.wait(500);
-            connection.play(__dirname + `/audio/nicknameAnnouncements/${newMember.member.user.id}.mp3`);
-          }
-        } else if (!Utils.getChannelMembers(connection.channel).length) connection.channel.leave();
-      }
+      if (connection && !Utils.getChannelMembers(connection.channel).length) connection.channel.leave();
     } catch (e) {
       console.error(e);
     }
@@ -143,7 +191,7 @@ Utils.fileExists(__dirname + '/settings.json').then(async exists => {
     await Utils.writeJSON(
       {
         token: '',
-        prefix: 'Randobot',
+        prefix: '!rb',
         saveGuildsSettingsInterval: 3600000,
         defaultLanguage: 'en',
       },

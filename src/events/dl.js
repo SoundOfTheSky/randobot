@@ -3,6 +3,7 @@ module.exports = {
   id: 'dl',
   title: 'Deaf lagging',
   voice: true,
+  event: 'loop',
   handler: guild => {
     const connection = Utils.getGuildVC(guild.id);
     const members = Utils.getChannelMembers(connection.channel);

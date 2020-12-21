@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "start": "node src/index.js",
-    "Bstart": "node src/Bindex.js"
+    "updateData": "node src/update.js"
   },
   "devDependencies": {
     "@babel/core": "^7.12.10",

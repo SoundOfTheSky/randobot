@@ -1,7 +1,9 @@
+const Utils = require('../utils');
 module.exports = {
   id: 'lb',
   title: 'Low bitrate',
   voice: true,
+  event: 'loop',
   handler: guild => {
     const connection = Utils.getGuildVC(guild.id);
     const originalBitrate = connection.channel.bitrate;
