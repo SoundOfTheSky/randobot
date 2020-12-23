@@ -226,7 +226,7 @@ client.once('ready', async () => {
   client.user.setActivity(`${client.settings.prefix} or @ on ${Object.keys(client.guildsSettings).length} servers`, {
     type: 'LISTENING',
   });
-  client.dbl.webhook.on('vote', vote => onVote(vote.id));
+  client.dbl.webhook.on('vote', vote => onVote(vote.user.id));
 });
 Utils.fileExists(__dirname + '/settings.json').then(async exists => {
   if (!exists) {
