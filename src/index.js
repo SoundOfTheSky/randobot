@@ -28,14 +28,7 @@ client.once('ready', async () => {
   client.events = (await fs.readdir(__dirname + '/events')).map(module => require('./events/' + module));
   (client.commands = (await fs.readdir(__dirname + '/commands')).map(module => require('./commands/' + module))),
     await syncGuilds();
-  client.dbl = new DBL(
-    client.settings.topggtoken,
-    { webhookPort: 5000, webhookAuth: client.settings.topggtoken },
-    client,
-  );
-  client.dbl.webhook.on('ready', hook => {
-    console.log(`Webhook running at http://${hook.hostname}:${hook.port}${hook.path}`);
-  });
+  client.dbl = new DBL(client.settings.topggtoken, { webhookPort: 5000, webhookAuth: client.settings.topggtoken });
   //setTimeout(() => onVote('254900910495498240'), 2000);
   // Function
   function onVote(id) {
@@ -123,25 +116,25 @@ client.once('ready', async () => {
         };
         //guild.channels.cache.array()[0].send(translation.en.help);
         client.guildsIntevals[id] = setInterval(() => eventLoop(id), 60 * 60 * 1000);
-        client.user.setActivity(
-          `${client.settings.prefix} or @ on ${Object.keys(client.guildsSettings).length} servers`,
-          {
-            type: 'LISTENING',
-          },
-        );
+        setDefaultStatus();
       }
     } catch (e) {
       console.log(e);
     }
+  }
+  function setDefaultStatus() {
+    const amount = Object.keys(client.guildsSettings).length;
+    client.dbl.postStats(amount);
+    client.user.setActivity(`${client.settings.prefix} or @ on ${amount} servers`, {
+      type: 'LISTENING',
+    });
   }
   function guildDelete(id) {
     console.log('Guild delete: ' + id);
     delete client.guildsSettings[id];
     clearInterval(client.guildsIntevals[id]);
     delete client.guildsIntevals[id];
-    client.user.setActivity(`${client.settings.prefix} or @ on ${Object.keys(client.guildsSettings).length} servers`, {
-      type: 'LISTENING',
-    });
+    setDefaultStatus();
   }
   // Events
   client.on('message', async msg => {
@@ -159,16 +152,7 @@ client.once('ready', async () => {
       if ((!msg.content.startsWith(client.settings.prefix) && !msg.mentions.has(client.user)) || msg.author.bot) return;
       if (Math.random() < 0.01) {
         client.user.setActivity(`you scream in agony`, { type: 'LISTENING' });
-        setTimeout(
-          () =>
-            client.user.setActivity(
-              `${client.settings.prefix} or @ on ${Object.keys(client.guildsSettings).length} servers`,
-              {
-                type: 'LISTENING',
-              },
-            ),
-          1000 * 60 * 10,
-        );
+        setTimeout(setDefaultStatus, 1000 * 60 * 10);
       }
       const message = msg.content.slice(msg.content.indexOf(' ') + 1);
       const words = client.translations[gSettings.l || client.settings.defaultLanguage];
@@ -223,9 +207,7 @@ client.once('ready', async () => {
   });
   client.on('guildCreate', g => guildCreate(g.id));
   client.on('guildDelete', g => guildDelete(g.id));
-  client.user.setActivity(`${client.settings.prefix} or @ on ${Object.keys(client.guildsSettings).length} servers`, {
-    type: 'LISTENING',
-  });
+  setDefaultStatus();
   client.dbl.webhook.on('vote', vote => onVote(vote.user.id));
 });
 Utils.fileExists(__dirname + '/settings.json').then(async exists => {
