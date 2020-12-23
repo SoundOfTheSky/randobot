@@ -60,5 +60,7 @@
   "cmd join description": "Make bot join to your voice channel.",
   "cmd only admin": "only admin",
   "cmd only admin title": "only admin",
-  "cmd only admin description": "Toggle bot accepting chat commands only from people that has permission to ban."
+  "cmd only admin description": "Toggle bot accepting chat commands only from people that has permission to ban.",
+  "user voted title": "THANK YOU, $user",
+  "user voted description": "Your vote will help other users to find Randobot and make me very happy 💙 \n\nThere are no rewards or unlocks, because i don't want to force people to vote, but still i'm very greatful. \n\nIf you want to help Randobot be more popular you can vote at [top.gg (click)](https://top.gg/bot/739245477274451970)."
 }

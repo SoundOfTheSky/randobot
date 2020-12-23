@@ -3,6 +3,8 @@ const fs = require('fs/promises');
 const Utils = require('./utils');
 const eventLoop = require('./eventLoop');
 const client = new Discord.Client();
+const DBL = require('dblapi.js');
+
 Utils.client = client;
 client.once('ready', async () => {
   console.log('Logged in!');
@@ -26,7 +28,47 @@ client.once('ready', async () => {
   client.events = (await fs.readdir(__dirname + '/events')).map(module => require('./events/' + module));
   (client.commands = (await fs.readdir(__dirname + '/commands')).map(module => require('./commands/' + module))),
     await syncGuilds();
+  client.dbl = new DBL(
+    client.settings.topggtoken,
+    { webhookPort: 5000, webhookAuth: client.settings.topggtoken },
+    client,
+  );
+  client.dbl.webhook.on('ready', hook => {
+    console.log(`Webhook running at http://${hook.hostname}:${hook.port}${hook.path}`);
+  });
+  //setTimeout(() => onVote('254900910495498240'), 2000);
   // Function
+  function onVote(id) {
+    const thankyouimages = [
+      'https://i.imgur.com/SreAXKi.jpg',
+      'https://i.imgur.com/EB8SdP6.jpg',
+      'https://i.imgur.com/yymJHTe.jpg',
+      'https://i.imgur.com/OOqrsrS.jpg',
+      'https://i.imgur.com/ZgDVhlQ.jpg',
+      'https://i.imgur.com/Vhyg0iZ.jpg',
+      'https://i.imgur.com/f5Zc2y4.jpg',
+      'https://i.imgur.com/s957PjH.jpg',
+      'https://i.imgur.com/hzDYRCo.jpg',
+    ];
+    client.guilds.cache.array().forEach(async g => {
+      const gSettings = client.guildsSettings[g.id];
+      const words = client.translations[gSettings.l || client.settings.defaultLanguage];
+      const m = await g.members.fetch(id);
+      if (m) {
+        const c = g.channels.cache.array().find(c => c.type === 'text');
+        if (c) {
+          c.send(
+            new Discord.MessageEmbed()
+              .setColor('#0099ff')
+              .setTitle(words['user voted title'].replace('$user', m.displayName))
+              .setDescription(words['user voted description'])
+              .setThumbnail(m.user.avatarURL({ dynamic: true, size: 128 }))
+              .setImage(thankyouimages[Math.floor(Math.random() * thankyouimages.length)]),
+          );
+        }
+      }
+    });
+  }
   async function syncGuilds() {
     const guildsAreIn = client.guilds.cache.array();
     const leftGuilds = Object.keys(client.guildsSettings);
@@ -184,6 +226,7 @@ client.once('ready', async () => {
   client.user.setActivity(`${client.settings.prefix} or @ on ${Object.keys(client.guildsSettings).length} servers`, {
     type: 'LISTENING',
   });
+  client.dbl.webhook.on('vote', vote => onVote(vote.id));
 });
 Utils.fileExists(__dirname + '/settings.json').then(async exists => {
   if (!exists) {
@@ -194,6 +237,7 @@ Utils.fileExists(__dirname + '/settings.json').then(async exists => {
         prefix: '!rb',
         saveGuildsSettingsInterval: 3600000,
         defaultLanguage: 'en',
+        topggtoken: '',
       },
       __dirname + '/settings.json',
     );

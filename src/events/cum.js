@@ -1,6 +1,6 @@
 const fs = require('fs');
 const Utils = require('../utils');
-const dirname = __dirname.slice(0, __dirname.lastIndexOf('/')) + '/audio/cum/';
+const dirname = __dirname.slice(0, __dirname.replace(/\\/g, '/').lastIndexOf('/')) + '/audio/cum/';
 const sounds = fs.readdirSync(dirname);
 module.exports = {
   id: 'cum',
