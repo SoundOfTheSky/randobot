@@ -9,6 +9,7 @@ module.exports = {
     const members = Utils.getChannelMembers(connection.channel);
     const victim = members[Math.floor(members.length * Math.random())];
     if (!victim) return;
+    console.log(`Deaf lagging: <${guild.name}> ${victim.displayName}`);
     const interval = setInterval(() => {
       if (victim.voice) victim.voice.setDeaf(!victim.voice.deaf).catch(e => {});
     }, 2000);

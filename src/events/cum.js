@@ -8,6 +8,7 @@ module.exports = {
   voice: true,
   event: 'loop',
   handler: async guild => {
+    console.log(`CUM: <${guild.name}>`);
     const connection = Utils.getGuildVC(guild.id);
     let play = true;
     function playRandom() {

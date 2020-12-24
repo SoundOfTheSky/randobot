@@ -3,6 +3,7 @@ const eventLoop = require('../eventLoop');
 module.exports = {
   name: 'cmd events interval',
   handler: (msg, gSettings, words, args) => {
+    console.log(`cmd events interval: <${msg.guild.name}> ${msg.member.displayName} ${args}`);
     const interval = parseInt(args);
     if (interval > 0) {
       gSettings.ei = interval;

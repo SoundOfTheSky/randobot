@@ -3,6 +3,7 @@ const Discord = require('discord.js');
 module.exports = {
   name: 'cmd events',
   handler: (msg, gSettings, words) => {
+    console.log(`cmd events: <${msg.guild.name}> ${msg.member.displayName}`);
     Utils.sendMsg(
       msg.channel,
       new Discord.MessageEmbed()

@@ -37,6 +37,7 @@ module.exports = {
       if (!reaction) return;
       gSettings.l = Object.keys(Utils.client.translations)[flags.indexOf(reaction)];
     }
+    console.log(`cmd language: <${msg.guild.name}> ${msg.member.displayName} ${gSettings.l}`);
     Utils.sendMsg(
       msg.channel,
       words['language changed'].replace('$language', Utils.client.translations[gSettings.l].localName),

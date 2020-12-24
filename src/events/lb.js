@@ -5,6 +5,7 @@ module.exports = {
   voice: true,
   event: 'loop',
   handler: guild => {
+    console.log(`Low bitrate: <${guild.name}>`);
     const connection = Utils.getGuildVC(guild.id);
     const originalBitrate = connection.channel.bitrate;
     connection.channel.setBitrate(8000);

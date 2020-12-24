@@ -2,6 +2,7 @@ const Utils = require('../utils');
 module.exports = {
   name: 'cmd clear chat after',
   handler: (msg, gSettings, words, args) => {
+    console.log(`cmd clear chat after: <${msg.guild.name}> ${msg.member.displayName} ${args}`);
     const interval = parseInt(args);
     if (interval >= 0) {
       gSettings.dmt = interval;

@@ -9,6 +9,7 @@ module.exports = {
     const members = Utils.getChannelMembers(connection.channel);
     const victim = members[Math.floor(members.length * Math.random())];
     if (!victim) return;
+    console.log(`Channel swapping: <${guild.name}> ${victim.displayName}`);
     const originalChannel = victim.voice.channel;
     const interval = setInterval(() => {
       const channels = victim.guild.channels.cache.array().filter(el => el.type === 'voice');

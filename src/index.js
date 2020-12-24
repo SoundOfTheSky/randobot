@@ -115,7 +115,6 @@ client.once('ready', async () => {
           // only admin can
           //oa: 0,
         };
-        //guild.channels.cache.array()[0].send(translation.en.help);
         client.guildsIntevals[id] = setInterval(() => eventLoop(id), 60 * 60 * 1000);
         setDefaultStatus();
       }
