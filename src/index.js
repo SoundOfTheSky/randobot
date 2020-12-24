@@ -29,6 +29,9 @@ client.once('ready', async () => {
   (client.commands = (await fs.readdir(__dirname + '/commands')).map(module => require('./commands/' + module))),
     await syncGuilds();
   client.dbl = new DBL(client.settings.topggtoken, { webhookPort: 5000, webhookAuth: client.settings.topggtoken });
+  client.dbl.webhook.on('ready', hook => {
+    console.log(`Webhook running at http://${hook.hostname}:${hook.port}${hook.path}`);
+  });
   //setTimeout(() => onVote('254900910495498240'), 2000);
   // Function
   function onVote(vote) {
