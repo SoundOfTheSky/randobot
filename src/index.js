@@ -31,7 +31,8 @@ client.once('ready', async () => {
   client.dbl = new DBL(client.settings.topggtoken, { webhookPort: 5000, webhookAuth: client.settings.topggtoken });
   //setTimeout(() => onVote('254900910495498240'), 2000);
   // Function
-  function onVote(id) {
+  function onVote(vote) {
+    console.log(vote.user);
     const thankyouimages = [
       'https://i.imgur.com/SreAXKi.jpg',
       'https://i.imgur.com/EB8SdP6.jpg',
@@ -46,7 +47,7 @@ client.once('ready', async () => {
     client.guilds.cache.array().forEach(async g => {
       const gSettings = client.guildsSettings[g.id];
       const words = client.translations[gSettings.l || client.settings.defaultLanguage];
-      const m = await g.members.fetch(id);
+      const m = await g.members.fetch(vote.user);
       if (m) {
         const c = g.channels.cache.array().find(c => c.type === 'text');
         if (c) {
@@ -86,9 +87,9 @@ client.once('ready', async () => {
     );
   }
   async function guildCreate(id) {
-    console.log('Guild create: ' + id);
+    const guild = client.guilds.cache.get(id);
+    console.log('Guild create: ' + guild.name);
     try {
-      const guild = client.guilds.cache.get(id);
       if (!guild.me.hasPermission('ADMINISTRATOR')) {
         setImmediate(async () => {
           await (await client.users.fetch(guild.ownerID)).send(
@@ -119,7 +120,7 @@ client.once('ready', async () => {
         setDefaultStatus();
       }
     } catch (e) {
-      console.log(e);
+      console.log(e, e.message);
     }
   }
   function setDefaultStatus() {
@@ -130,7 +131,8 @@ client.once('ready', async () => {
     });
   }
   function guildDelete(id) {
-    console.log('Guild delete: ' + id);
+    const guild = client.guilds.cache.get(id);
+    console.log('Guild delete: ' + guild ? guild.name : id);
     delete client.guildsSettings[id];
     clearInterval(client.guildsIntevals[id]);
     delete client.guildsIntevals[id];
@@ -176,7 +178,7 @@ client.once('ready', async () => {
           gSettings.dmt,
         );
     } catch (e) {
-      console.error(e);
+      console.error(e, e.message);
     }
   });
   client.on('voiceStateUpdate', async (oldMember, newMember) => {
@@ -202,17 +204,17 @@ client.once('ready', async () => {
       }
       if (connection && !Utils.getChannelMembers(connection.channel).length) connection.channel.leave();
     } catch (e) {
-      console.error(e);
+      if (!['WebSocket was closed before the connection was established'].includes(e.message))
+        console.error(e, e.message);
     }
   });
   client.on('guildCreate', g => guildCreate(g.id));
   client.on('guildDelete', g => guildDelete(g.id));
   setDefaultStatus();
-  client.dbl.webhook.on('vote', vote => onVote(vote.user.id));
+  client.dbl.webhook.on('vote', onVote);
 });
 Utils.fileExists(__dirname + '/settings.json').then(async exists => {
-  if (!exists) {
-    console.log('Created settings.json\nDONT FORGET TO ADD YOUR TOKEN');
+  if (!exists)
     await Utils.writeJSON(
       {
         token: '',
@@ -223,7 +225,6 @@ Utils.fileExists(__dirname + '/settings.json').then(async exists => {
       },
       __dirname + '/settings.json',
     );
-  }
   client.settings = await Utils.readJSON(__dirname + '/settings.json');
   client.login(client.settings.token);
 });
