@@ -48,22 +48,25 @@ client.once('ready', async () => {
       'https://i.imgur.com/hzDYRCo.jpg',
     ];
     client.guilds.cache.array().forEach(async g => {
-      const gSettings = client.guildsSettings[g.id];
-      const words = client.translations[gSettings.l || client.settings.defaultLanguage];
-      const m = await g.members.fetch(vote.user);
-      if (m) {
-        const c = g.channels.cache.array().find(c => c.type === 'text');
-        if (c) {
-          c.send(
-            new Discord.MessageEmbed()
-              .setColor('#0099ff')
-              .setTitle(words['user voted title'].replace('$user', m.displayName))
-              .setDescription(words['user voted description'])
-              .setThumbnail(m.user.avatarURL({ dynamic: true, size: 128 }))
-              .setImage(thankyouimages[Math.floor(Math.random() * thankyouimages.length)]),
-          );
+      try {
+        const gSettings = client.guildsSettings[g.id];
+        const words = client.translations[gSettings.l || client.settings.defaultLanguage];
+        const m = await g.members.fetch(vote.user);
+        if (m) {
+          const c = g.channels.cache.array().find(c => c.type === 'text');
+          if (c) {
+            console.log(`on vote: <${g.name}> ${m.displayName}`);
+            c.send(
+              new Discord.MessageEmbed()
+                .setColor('#0099ff')
+                .setTitle(words['user voted title'].replace('$user', m.displayName))
+                .setDescription(words['user voted description'])
+                .setThumbnail(m.user.avatarURL({ dynamic: true, size: 128 }))
+                .setImage(thankyouimages[Math.floor(Math.random() * thankyouimages.length)]),
+            );
+          }
         }
-      }
+      } catch {}
     });
   }
   async function syncGuilds() {
@@ -201,6 +204,7 @@ client.once('ready', async () => {
             oldMember.channel.leave();
             await Utils.wait(1000);
           }
+          console.log(`join vc: <${newMember.guild.name}> ${newMember.member.displayName}`);
           connection = await VCs[biggsetVCi].join();
         }
       }
