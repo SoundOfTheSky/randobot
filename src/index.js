@@ -3,7 +3,6 @@ const fs = require('fs/promises');
 const Utils = require('./utils');
 const eventLoop = require('./eventLoop');
 const client = new Discord.Client();
-const DBL = require('dblapi.js');
 
 Utils.client = client;
 client.once('ready', async () => {
@@ -28,10 +27,6 @@ client.once('ready', async () => {
   client.events = (await fs.readdir(__dirname + '/events')).map(module => require('./events/' + module));
   (client.commands = (await fs.readdir(__dirname + '/commands')).map(module => require('./commands/' + module))),
     await syncGuilds();
-  client.dbl = new DBL(client.settings.topggtoken, { webhookPort: 5000, webhookAuth: client.settings.topggtoken });
-  client.dbl.webhook.on('ready', hook => {
-    console.log(`Webhook running at http://${hook.hostname}:${hook.port}${hook.path}`);
-  });
   //setTimeout(() => onVote('254900910495498240'), 2000);
   // Function
   function onVote(vote) {
@@ -130,14 +125,12 @@ client.once('ready', async () => {
   }
   function setDefaultStatus() {
     const amount = Object.keys(client.guildsSettings).length;
-    client.dbl.postStats(amount);
     client.user.setActivity(`${client.settings.prefix} or @ on ${amount} servers`, {
       type: 'LISTENING',
     });
   }
   function guildDelete(id) {
-    const guild = client.guilds.cache.get(id);
-    console.log('Guild delete: ' + guild ? guild.name : id);
+    console.log('Guild delete: ' + id);
     delete client.guildsSettings[id];
     clearInterval(client.guildsIntevals[id]);
     delete client.guildsIntevals[id];
@@ -217,7 +210,6 @@ client.once('ready', async () => {
   client.on('guildCreate', g => guildCreate(g.id));
   client.on('guildDelete', g => guildDelete(g.id));
   setDefaultStatus();
-  client.dbl.webhook.on('vote', onVote);
 });
 Utils.fileExists(__dirname + '/settings.json').then(async exists => {
   if (!exists)
